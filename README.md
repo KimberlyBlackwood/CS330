@@ -64,3 +64,67 @@ Computer science will help me to reach my goal of becoming a software engineer b
 10.How do computational graphics and visualizations give you new knowledge and skills that can be applied in your future educational pathway?
 Computational graphics and visualization gave me new knowledge and skill such as: making the data easier to understand, by improving my comprehension of complex systems.
 <img width="468" height="666" alt="image" src="https://github.com/user-attachments/assets/d41dd649-5d89-40b5-b23e-e385ed1ff9f4" />
+
+
+
+
+CS 330 Milestone One
+SNHU
+Kimberly Blackwood
+Professor R. Wilson
+September 4,2025
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+For this project I took a photo of a lemon tree in a flowerpot,  placed on a grassy patch with a lantern and a garden shovel nearby. This scene will allow me to show basic  3D shapes.  The trunk of the tree will be modeled as a cylinder, lemons as a sphere, the canopy as  a cone,  flowerpot as a tapered cylinder. The dirt and grass are modeled as a plane. The lantern will be  shown as a  rectangular box, the garden shovel combines two different shapes cylinder for the handle and prism for the blade.
+
+I choose these objects because they will demonstrate how we can combine  basic shapes into different forms to create recognizable forms. The approach I followed made it less complex to achieve the requirements. I incorporate forms with minimal complexity which made the work achievable.
+
+
+
+Summary Table (for clarity)
+
+Object	Basic 3D Shapes	Explanation
+Lemon Tree	Sphere, cylinder, cone	Thre tree trunk can be a cylinder for the height, the lemons as a sphere for their rounded appearance and the canopy as a cone for its peak and spread base.
+Flower Pot	Tapered cylinder	The flower pot with the sloping sides will be best captured as  a tapered cylinder.
+Grass	Plane	A flat plane will serve as the ground and on it the grass blades will be represented by coloring it green.
+Dirt	Plane	The dirt inside the flower pot will be hirizontal and colored brown.
+Lanttern	Box	The lanter rectangular form will best match an elongated box.
+Shovel	Prism and cylinder 	The handle of the shovel will be a cylinder because it has a round shape and the blade will be a prism because it is flat and angular.
+
+
+ 
+ 
+
+ 
+ 
+<img width="468" height="630" alt="image" src="https://github.com/user-attachments/assets/ca805e19-9fcd-4cd2-a38c-90fb31645f4f" />
