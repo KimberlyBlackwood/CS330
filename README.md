@@ -1160,6 +1160,647 @@ void SceneManager::RenderScene()
 
 	/****************************************************************/ 
 
- 
+
+
+
+ ///////////////////////////////////////////////////////////////////////////////
+// shadermanager.h
+// ============
+// manage the loading and rendering of 3D scenes
+//
+//  AUTHOR: Brian Battersby - SNHU Instructor / Computer Science
+//	Created for CS-330-Computational Graphics and Visualization, Nov. 1st, 2023
+///////////////////////////////////////////////////////////////////////////////
+
+#pragma once
+
+#include "ShaderManager.h"
+#include "ShapeMeshes.h"
+
+#include <string>
+#include <vector>
+
+#include "SceneManager.h"
+
+#include "stb_image.h"
+#include <glm/gtx/transform.hpp>
+
+
+
+/***********************************************************
+ *  SceneManager
+ *
+ *  This class contains the code for preparing and rendering
+ *  3D scenes, including the shader settings.
+ ***********************************************************/
+class SceneManager
+{
+public:
+	// constructor
+	SceneManager(ShaderManager *pShaderManager);
+	// destructor
+	~SceneManager();
+
+	struct TEXTURE_INFO
+	{
+		std::string tag;
+		uint32_t ID;
+	};
+
+	struct OBJECT_MATERIAL
+	{
+		float ambientStrength;
+		glm::vec3 ambientColor;
+		glm::vec3 diffuseColor;
+		glm::vec3 specularColor;
+		float shininess;
+		std::string tag;
+	};
+
+private:
+	// pointer to shader manager object
+	ShaderManager* m_pShaderManager;
+	// pointer to basic shapes object
+	ShapeMeshes* m_basicMeshes;
+	// total number of loaded textures
+	int m_loadedTextures;
+	// loaded textures info
+	TEXTURE_INFO m_textureIDs[16];
+	// defined object materials
+	std::vector<OBJECT_MATERIAL> m_objectMaterials;
+
+	// load texture images and convert to OpenGL texture data
+	bool CreateGLTexture(const char* filename, std::string tag);
+	// bind loaded OpenGL textures to slots in memory
+	void BindGLTextures();
+	// free the loaded OpenGL textures
+	void DestroyGLTextures();
+	// find a loaded texture by tag
+	int FindTextureID(std::string tag);
+	int FindTextureSlot(std::string tag);
+	// find a defined material by tag
+	bool FindMaterial(std::string tag, OBJECT_MATERIAL& material);
+
+	// set the transformation values 
+	// into the transform buffer
+	void SetTransformations(
+		glm::vec3 scaleXYZ,
+		float XrotationDegrees,
+		float YrotationDegrees,
+		float ZrotationDegrees,
+		glm::vec3 positionXYZ);
+
+	// set the color values into the shader
+	void SetShaderColor(
+		float redColorValue,
+		float greenColorValue,
+		float blueColorValue,
+		float alphaValue);
+
+	// set the texture data into the shader
+	void SetShaderTexture(
+		std::string textureTag);
+
+	// set the UV scale for the texture mapping
+	void SetTextureUVScale(
+		float u, float v);
+
+	// set the object material into the shader
+	void SetShaderMaterial(
+		std::string materialTag);
+
+public:
+
+	// The following methods are for the students to 
+	// customize for their own 3D scene
+	void PrepareScene();
+	void RenderScene();
+	// loads textures from image files
+	void LoadSceneTextures();
+	// pre-set light sources for 3D scene
+	void SetupSceneLights();
+	// pre-define the object materials for lighting
+	void DefineObjectMaterials();
+
+
+};
+
+
+///////////////////////////////////////////////////////////////////////////////
+// viewmanager.h
+// ============
+// manage the viewing of 3D objects within the viewport
+//
+//  AUTHOR: Brian Battersby - SNHU Instructor / Computer Science
+//	Created for CS-330-Computational Graphics and Visualization, Nov. 1st, 2023
+///////////////////////////////////////////////////////////////////////////////
+
+#include "ViewManager.h"
+
+// GLM Math Header inclusions
+#include <glm/glm.hpp>
+#include <glm/gtx/transform.hpp>
+#include <glm/gtc/type_ptr.hpp>    
+
+// declaration of the global variables and defines
+namespace
+{
+	// Variables for window width and height
+	const int WINDOW_WIDTH = 1000;
+	const int WINDOW_HEIGHT = 800;
+	const char* g_ViewName = "view";
+	const char* g_ProjectionName = "projection";
+
+	// camera object used for viewing and interacting with
+	// the 3D scene
+	Camera* g_pCamera = nullptr;
+
+	// these variables are used for mouse movement processing
+	float gLastX = WINDOW_WIDTH / 2.0f;
+	float gLastY = WINDOW_HEIGHT / 2.0f;
+	bool gFirstMouse = true;
+
+	// time between current frame and last frame
+	float gDeltaTime = 0.0f; 
+	float gLastFrame = 0.0f;
+
+	// the following variable is false when orthographic projection
+	// is off and true when it is on
+	bool bOrthographicProjection = false;
+}
+
+/***********************************************************
+ *  ViewManager()
+ *
+ *  The constructor for the class
+ ***********************************************************/
+ViewManager::ViewManager(
+	ShaderManager *pShaderManager)
+{
+	// initialize the member variables
+	m_pShaderManager = pShaderManager;
+	m_pWindow = NULL;
+	g_pCamera = new Camera();
+	// default camera view parameters
+	g_pCamera->Position = glm::vec3(0.0f, 5.0f, 12.0f);
+	g_pCamera->Front = glm::vec3(0.0f, -0.5f, -2.0f);
+	g_pCamera->Up = glm::vec3(0.0f, 1.0f, 0.0f);
+	g_pCamera->Zoom = 80;
+	g_pCamera->MovementSpeed = 10.0f;
+}
+
+/***********************************************************
+ *  ~ViewManager()
+ *
+ *  The destructor for the class
+ ***********************************************************/
+ViewManager::~ViewManager()
+{
+	// free up allocated memory
+	m_pShaderManager = NULL;
+	m_pWindow = NULL;
+	if (NULL != g_pCamera)
+	{
+		delete g_pCamera;
+		g_pCamera = NULL;
+	}
+}
+
+/***********************************************************
+ *  CreateDisplayWindow()
+ *
+ *  This method is used to create the main display window.
+ ***********************************************************/
+GLFWwindow* ViewManager::CreateDisplayWindow(const char* windowTitle)
+{
+	GLFWwindow* window = nullptr;
+
+	// try to create the displayed OpenGL window
+	window = glfwCreateWindow(
+		WINDOW_WIDTH,
+		WINDOW_HEIGHT,
+		windowTitle,
+		NULL, NULL);
+	if (window == NULL)
+	{
+		std::cout << "Failed to create GLFW window" << std::endl;
+		glfwTerminate();
+		return NULL;
+	}
+	glfwMakeContextCurrent(window);
+
+	// tell GLFW to capture all mouse events
+	//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+	// this callback is used to receive mouse moving events
+	glfwSetCursorPosCallback(window, &ViewManager::Mouse_Position_Callback);
+	
+	// this callback is used to set movement speed
+	glfwSetScrollCallback(window, &ViewManager::Mouse_Scroll_Callback);
+
+	
+	
+	// enable blending for supporting tranparent rendering
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	m_pWindow = window;
+
+	return(window);
+}
+
+/***********************************************************
+ *  Mouse_Position_Callback()
+ *
+ *  This method is automatically called from GLFW whenever
+ *  the mouse is moved within the active GLFW display window.
+ ***********************************************************/
+void ViewManager::Mouse_Position_Callback(GLFWwindow* window, double xMousePos, double yMousePos)
+{
+	// when the first mouse move event is received, this needs to be recorded so that
+	// all subsequent mouse moves can correctly calculate the X position offset and Y
+	// position offset for proper operation
+	if (gFirstMouse)
+	{
+		gLastX = xMousePos;
+		gLastY = yMousePos;
+		gFirstMouse = false;
+	}
+
+	// calculate the X offset and Y offset values for moving the 3D camera accordingly
+	float xOffset = xMousePos - gLastX;
+	float yOffset = gLastY - yMousePos; // reversed since y-coordinates go from bottom to top
+
+	// set the current positions into the last position variables
+	gLastX = xMousePos;
+	gLastY = yMousePos;
+
+	// move the 3D camera according to the calculated offsets
+	g_pCamera->ProcessMouseMovement(xOffset, yOffset);
+
+}
+
+/***********************************************************
+ *  Mouse_Scroll_Callback()
+ *
+ *  Tｾhis method is automatically called from GLFW whenever
+ *  the mouse is moved within the active GLFW display window.
+ ***********************************************************/
+void ViewManager::Mouse_Scroll_Callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	if (g_pCamera)
+	{
+	    g_pCamera->MovementSpeed += (float)yoffset;
+	if (g_pCamera->MovementSpeed < 1.0f)
+		g_pCamera->MovementSpeed = 1.0f;
+	if (g_pCamera->MovementSpeed > 100.0f)
+		g_pCamera->MovementSpeed = 100.0f;
+	}
+
+
+}
+
+
+/***********************************************************
+ *  ProcessKeyboardEvents()
+ *
+ *  This method is called to process any keyboard events
+ *  that may be waiting in the event queue.
+ ***********************************************************/
+void ViewManager::ProcessKeyboardEvents()
+{
+	// close the window if the escape key has been pressed
+	if (glfwGetKey(m_pWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+	{
+		glfwSetWindowShouldClose(m_pWindow, true);
+	}
+	// if the camera object is null, then exit this method
+	if (NULL == g_pCamera)
+	{
+		return;
+	}
+
+	// process camera zooming in and out
+	if (glfwGetKey(m_pWindow, GLFW_KEY_W) == GLFW_PRESS)
+	{
+		g_pCamera->ProcessKeyboard(FORWARD, gDeltaTime);
+	}
+	if (glfwGetKey(m_pWindow, GLFW_KEY_S) == GLFW_PRESS)
+	{
+		g_pCamera->ProcessKeyboard(BACKWARD, gDeltaTime);
+	}
+	// process camera panning left and right
+	if (glfwGetKey(m_pWindow, GLFW_KEY_A) == GLFW_PRESS)
+	{
+		g_pCamera->ProcessKeyboard(LEFT, gDeltaTime);
+	}
+	if (glfwGetKey(m_pWindow, GLFW_KEY_D) == GLFW_PRESS)
+	{
+		g_pCamera->ProcessKeyboard(RIGHT, gDeltaTime);
+	}
+	// process camera for up and down movement with Q and E keys
+	if (glfwGetKey(m_pWindow, GLFW_KEY_Q) == GLFW_PRESS)
+	{
+		g_pCamera->ProcessKeyboard(UP, gDeltaTime);
+	}
+	if (glfwGetKey(m_pWindow, GLFW_KEY_E) == GLFW_PRESS)
+	{
+		g_pCamera->ProcessKeyboard(DOWN, gDeltaTime);
+	}
+	
+	// process to change the perspective view
+	if (glfwGetKey(m_pWindow, GLFW_KEY_P) == GLFW_PRESS)
+	{
+		bOrthographicProjection = false;
+
+	}
+	// process to change the orthographic view
+	if (glfwGetKey(m_pWindow, GLFW_KEY_O) == GLFW_PRESS)
+	{
+		bOrthographicProjection = true;
+
+	}
+}
+
+/***********************************************************
+ *  PrepareSceneView()
+ *
+ *  This method is used for preparing the 3D scene by loading
+ *  the shapes, textures in memory to support the 3D scene 
+ *  rendering
+ ***********************************************************/
+void ViewManager::PrepareSceneView()
+{
+	glm::mat4 view;
+	glm::mat4 projection;
+
+	// per-frame timing
+	float currentFrame = glfwGetTime();
+	gDeltaTime = currentFrame - gLastFrame;
+	gLastFrame = currentFrame;
+
+	// process any keyboard events that may be waiting in the 
+	// event queue
+	ProcessKeyboardEvents();
+
+	// get the current view matrix from the camera
+	view = g_pCamera->GetViewMatrix();
+
+	if (bOrthographicProjection)
+	{
+		projection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.1f, 100.0f);
+	}
+	else {
+		
+		// define the current projection matrix
+		projection = glm::perspective(glm::radians(g_pCamera->Zoom), 
+			(GLfloat)WINDOW_WIDTH / (GLfloat)WINDOW_HEIGHT, 0.1f, 100.0f);
+
+
+	// define the current projection matrix
+	projection = glm::perspective(glm::radians(g_pCamera->Zoom), (GLfloat)WINDOW_WIDTH / (GLfloat)WINDOW_HEIGHT, 0.1f, 100.0f);
+
+	}
+	// if the shader manager object is valid
+	if (NULL != m_pShaderManager)
+	{
+		// set the view matrix into the shader for proper rendering
+		m_pShaderManager->setMat4Value(g_ViewName, view);
+		// set the view matrix into the shader for proper rendering
+		m_pShaderManager->setMat4Value(g_ProjectionName, projection);
+		// seｾt the view position of the camera into the shader for proper rendering
+		m_pShaderManager->setVec3Value("viewPosition", g_pCamera->Position);
+	}
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// viewmanager.h
+// ============
+// manage the viewing of 3D objects within the viewport
+//
+//  AUTHOR: Brian Battersby - SNHU Instructor / Computer Science
+//	Created for CS-330-Computational Graphics and Visualization, Nov. 1st, 2023
+///////////////////////////////////////////////////////////////////////////////
+
+#pragma once
+
+#include "ShaderManager.h"
+#include "camera.h"
+
+// GLFW library
+#include "GLFW/glfw3.h" 
+
+class ViewManager
+{
+public:
+	// constructor
+	ViewManager(
+		ShaderManager* pShaderManager);
+	// destructor
+	~ViewManager();
+
+	// mouse position callback for mouse interaction with the 3D scene
+	static void Mouse_Position_Callback(GLFWwindow* window, double xMousePos, double yMousePos);
+
+	// mouse scroll callback to adjust the speed of the camera movement
+	static void Mouse_Scroll_Callback(GLFWwindow* window, double xoffset, double yoffset);
+
+private:
+	// pointer to shader manager object
+	ShaderManager* m_pShaderManager;
+	// active OpenGL display window
+	GLFWwindow* m_pWindow;
+
+	// process keyboard events for interaction with the 3D scene
+	void ProcessKeyboardEvents();
+
+public:
+	// create the initial OpenGL display window
+	GLFWwindow* CreateDisplayWindow(const char* windowTitle);
+	
+	// prepare the conversion from 3D object display to 2D scene display
+	void PrepareSceneView();
+};
+
+
+#include <iostream>         // error handling and output
+#include <cstdlib>          // EXIT_FAILURE
+
+#include <GL/glew.h>        // GLEW library
+#include "GLFW/glfw3.h"     // GLFW library
+
+// GLM Math Header inclusions
+#include <glm/glm.hpp>
+#include <glm/gtx/transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include "SceneManager.h"
+#include "ViewManager.h"
+#include "ShapeMeshes.h"
+#include "ShaderManager.h"
+
+// Namespace for declaring global variables
+namespace
+{
+	// Macro for window title
+	const char* const WINDOW_TITLE = "7-1 FinalProject and Milestones"; 
+
+	// Main GLFW window
+	GLFWwindow* g_Window = nullptr;
+
+	// scene manager object for managing the 3D scene prepare and render
+	SceneManager* g_SceneManager = nullptr;
+	// shader manager object for dynamic interaction with the shader code
+	ShaderManager* g_ShaderManager = nullptr;
+	// view manager object for managing the 3D view setup and projection to 2D
+	ViewManager* g_ViewManager = nullptr;
+}
+
+// Function declarations - all functions that are called manually
+// need to be pre-declared at the beginning of the source code.
+bool InitializeGLFW();
+bool InitializeGLEW();
+
+
+/***********************************************************
+ *  main(int, char*)
+ *
+ *  This function gets called after the application has been
+ *  launched.
+ ***********************************************************/
+int main(int argc, char* argv[])
+{
+	// if GLFW fails initialization, then terminate the application
+	if (InitializeGLFW() == false)
+	{
+		return(EXIT_FAILURE);
+	}
+
+	// try to create a new shader manager object
+	g_ShaderManager = new ShaderManager();
+	// try to create a new view manager object
+	g_ViewManager = new ViewManager(
+		g_ShaderManager);
+
+	// try to create the main display window
+	g_Window = g_ViewManager->CreateDisplayWindow(WINDOW_TITLE);
+
+	// if GLEW fails initialization, then terminate the application
+	if (InitializeGLEW() == false)
+	{
+		return(EXIT_FAILURE);
+	}
+
+	// load the shader code from the external GLSL files
+	g_ShaderManager->LoadShaders(
+		"../../Utilities/shaders/vertexShader.glsl",
+		"../../Utilities/shaders/fragmentShader.glsl");
+	g_ShaderManager->use();
+
+	// try to create a new scene manager object and prepare the 3D scene
+	g_SceneManager = new SceneManager(g_ShaderManager);
+	g_SceneManager->PrepareScene();
+
+	// loop will keep running until the application is closed 
+	// or until an error has occurred
+	while (!glfwWindowShouldClose(g_Window))
+	{
+		// Enable z-depth
+		glEnable(GL_DEPTH_TEST);
+
+		// Clear the frame and z buffers
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		// convert from 3D object space to 2D view
+		g_ViewManager->PrepareSceneView();
+
+		// refresh the 3D scene
+		g_SceneManager->RenderScene();
+
+
+		// Flips the the back buffer with the front buffer every frame.
+		glfwSwapBuffers(g_Window);
+
+		// query the latest GLFW events
+		glfwPollEvents();
+	}
+
+	// clear the allocated manager objects from memory
+	if (NULL != g_SceneManager)
+	{
+		delete g_SceneManager;
+		g_SceneManager = NULL;
+	}
+	if (NULL != g_ViewManager)
+	{
+		delete g_ViewManager;
+		g_ViewManager = NULL;
+	}
+	if (NULL != g_ShaderManager)
+	{
+		delete g_ShaderManager;
+		g_ShaderManager = NULL;
+	}
+
+	// Terminates the program successfully
+	exit(EXIT_SUCCESS); 
+}
+
+/***********************************************************
+ *	InitializeGLFW()
+ * 
+ *  This function is used to initialize the GLFW library.   
+ ***********************************************************/
+bool InitializeGLFW()
+{
+	// GLFW: initialize and configure library
+	// --------------------------------------
+	glfwInit();
+
+#ifdef __APPLE__
+	// set the version of OpenGL and profile to use
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#else
+	// set the version of OpenGL and profile to use
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#endif
+	// GLFW: end -------------------------------
+
+	return(true);
+}
+
+/***********************************************************
+ *	InitializeGLEW()
+ *
+ *  This function is used to initialize the GLEW library.
+ ***********************************************************/
+bool InitializeGLEW()
+{
+	// GLEW: initialize
+	// -----------------------------------------
+	GLenum GLEWInitResult = GLEW_OK;
+
+	// try to initialize the GLEW library
+	GLEWInitResult = glewInit();
+	if (GLEW_OK != GLEWInitResult)
+	{
+		std::cerr << glewGetErrorString(GLEWInitResult) << std::endl;
+		return false;
+	}
+	// GLEW: end -------------------------------
+
+	// Displays a successful OpenGL initialization message
+	std::cout << "INFO: OpenGL Successfully Initialized\n";
+	std::cout << "INFO: OpenGL Version: " << glGetString(GL_VERSION) << "\n" << std::endl;
+
+	return(true);
+}
  
 
