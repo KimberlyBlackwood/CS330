@@ -50,7 +50,7 @@ How can computer science help me in reaching my goals?
 Computer science will help me to reach my goal of becoming a software engineer by developing my problem-solving skills which is done through critical thinking. It taught me the importance of  being adaptable, learning new technology, and methodology. This is important to be established  in the field for a long term.
 10.How do computational graphics and visualizations give you new knowledge and skills that can be applied in your future educational pathway?
 Computational graphics and visualization gave me new knowledge and skill such as: making the data easier to understand, by improving my comprehension of complex systems.
-<img width="468" height="666" alt="image" src="https://github.com/user-attachments/assets/d41dd649-5d89-40b5-b23e-e385ed1ff9f4" />
+
 
 CS 330 Milestone One
 SNHU
@@ -71,7 +71,3 @@ Dirt	Plane	The dirt inside the flower pot will be hirizontal and colored brown.
 Lanttern	Box	The lanter rectangular form will best match an elongated box.
 Shovel	Prism and cylinder 	The handle of the shovel will be a cylinder because it has a round shape and the blade will be a prism because it is flat and angular.
 
-
- 
-
-	
